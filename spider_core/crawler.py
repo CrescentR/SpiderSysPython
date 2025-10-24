@@ -246,6 +246,7 @@ class CrawlerService:
                         break
 
                     data = {
+                        "task_id": task_id,
                         "keywords": keywords,           # 数组
                         "url": link['href'],
                         "title": link['title'],

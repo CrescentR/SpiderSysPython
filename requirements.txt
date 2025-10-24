@@ -1,0 +1,12 @@
+Django==5.2.7
+psycopg2-binary==2.9.11
+aiohttp==3.13.1
+beautifulsoup4==4.14.2
+lxml==6.0.2
+requests==2.32.5
+aio-pika~=9.5.7
+djangorestframework~=3.16.1
+pydantic-settings~=2.11.0
+pydantic~=2.12.3
+dotenv~=0.9.9
+python-dotenv~=1.1.1

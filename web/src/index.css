@@ -1,0 +1,27 @@
+/* 取消 Vite 模板的居中与限宽 */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+#root {
+  max-width: none;      /* 关键：去掉 1280px 的限宽 */
+  text-align: left;     /* 防止文字居中 */
+}
+body {
+  display: block;       /* 覆盖 place-items:center 的 grid 布局 */
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}

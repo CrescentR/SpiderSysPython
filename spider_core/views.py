@@ -57,7 +57,7 @@ async def start_crawl(request):
     """启动爬取任务"""
     try:
         body = json.loads(request.body)
-        task_id = body.get("task_id")
+        task_id = body.get("taskId")
         keywords = normalize_keywords(body.get('keywords', []))
         page_size = body.get('pageSize', 1)
         engine = body.get('engine', 'bing')
@@ -87,7 +87,7 @@ async def start_crawl(request):
         )
 
         return JsonResponse({
-            "task_id": task_id,
+            "taskId": task_id,
             "status": "queued",
             "keywords": keywords,
             "consumers": list(QUEUE_CONFIG.keys()),

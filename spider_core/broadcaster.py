@@ -63,6 +63,7 @@ class Broadcaster:
                 kw = [s.strip() for s in kw.strip("[]").split(",") if s.strip()]
 
         payload = {
+            "taskId": task_id,
             "keywords": kw,
             "url": data.get("url", ""),
             "title": data.get("title", ""),

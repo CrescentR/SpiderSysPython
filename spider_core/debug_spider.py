@@ -1,124 +1,164 @@
-import re
-from typing import Dict, List, Iterable, Callable, Optional
-from urllib.parse import quote
-from bs4 import BeautifulSoup
-import requests
+import asyncio
+from playwright.async_api import async_playwright
+from urllib.parse import quote_plus, urlencode
+import random
+import time
 
+BING_BASE = "https://www.bing.com/search"
 
-def build_search_url(keywords: List[str], page_no: int, engine: str = "bing") -> str:
-    """构建搜索引擎 URL"""
-    if not keywords:
-        return ""
+# 可选：想要彻底不出知乎，直接加上负词
+EXCLUDE_SITES = ["zhihu.com", "baidu.com", "tieba.baidu.com"]
 
-    encoded_keywords = [quote(kw) for kw in keywords]
-    query = '+'.join(encoded_keywords)
+# # 可选：只想要壁纸站，打开这个白名单
+# WHITELIST_SITES = [
+#     "wallhaven.cc", "unsplash.com", "pexels.com", "pixabay.com",
+#     "alpha.wallhaven.cc", "deviantart.com", "artstation.com",
+#     "simpledesktops.com", "wallpaperflare.com", "wallpaperhub.app",
+# ]
 
-    if engine == "baidu":
-        pn = (page_no - 1) * 10 if page_no > 1 else 0
-        return f"https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd={query}&pn={pn}"
-    elif engine == "bing":
-        first = (page_no - 1) * 10 + 1 if page_no > 1 else 1
-        return f"https://cn.bing.com/search?q={query}&first={first}"
+def build_query(keywords, exclude_sites=None, whitelist_sites=None):
+    """
+    keywords: str 或 list[str]
+    """
+    if isinstance(keywords, (list, tuple)):
+        q = " ".join(keywords)
     else:
-        return ""
+        q = str(keywords)
+
+    # 负词排除域
+    if exclude_sites:
+        q += " " + " ".join([f"-site:{d}" for d in exclude_sites])
+
+    # 只要白名单（可选）
+    if whitelist_sites:
+        q += " " + " OR ".join([f"site:{d}" for d in whitelist_sites])
+
+    return q.strip()
 
 
-def iter_parse_links(
-    url: str,
-    engine: str = "bing",
-    on_item: Optional[Callable[[Dict[str, str]], None]] = None,
-    timeout: int = 15,
-    headers: Optional[Dict[str, str]] = None,
-) -> Iterable[Dict[str, str]]:
+async def fetch_bing_results(keywords, page_no: int, *, mkt="en-US", cc="US",
+                             use_english_results=True, count=10, timeout_ms=15000,
+                             exclude_sites=None):  # 新增参数
     """
-    从搜索结果页“边解析边产出”链接。
-    - 解析到一条就 yield 一条（或调用 on_item）
-    - 与原 parse_links 等价，但不再一次性返回整表
+    增加 exclude_sites 参数，在解析结果时手动过滤
     """
-    headers = headers or {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/124.0 Safari/537.36"
+    q = build_query(keywords, exclude_sites=exclude_sites, whitelist_sites=None)
+    params = {
+        "q": q,
+        "count": count,
+        "first": page_no * count + 1,
+        "form": "PERE",
+        "mkt": mkt,
+        "cc": cc,
     }
+    if use_english_results:
+        params["ensearch"] = "1"
 
-    resp = requests.get(url, headers=headers, timeout=timeout)
-    resp.raise_for_status()
-    html_content = resp.text
-    soup = BeautifulSoup(html_content, "html.parser")
+    url = f"{BING_BASE}?{urlencode(params)}"
 
-    if engine == "baidu":
-        # 百度搜索结果容器经常变，这里保留你原来的多选择器兜底策略
-        for item in soup.find_all('div', class_=re.compile(r'result')):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(
+            locale="en-US" if use_english_results else "zh-CN",
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            extra_http_headers={
+                "Accept-Language": "en-US,en;q=0.9" if use_english_results else "zh-CN,zh;q=0.9",
+            },
+        )
+
+        page = await context.new_page()
+        page.set_default_timeout(timeout_ms)
+
+        await page.goto(url)
+        await page.wait_for_selector("li.b_algo h2 a", timeout=timeout_ms)
+
+        nodes = await page.query_selector_all("li.b_algo h2 a")
+
+        results = []
+        seen = set()
+
+        for a in nodes:
             try:
-                title_tag = (item.find('span', class_=re.compile(r'tts-title-content'))
-                             or item.find('h3')
-                             or item.find('a'))
+                title = (await a.inner_text()).strip()
+                href = await a.get_attribute("href")
+                if not href:
+                    continue
 
-                link_tag = (item.find('a', class_=re.compile(r'c-link'))
-                            or item.find('a', class_=re.compile(r'c-showurl|c-color-url'))
-                            or item.find('a', class_=re.compile(r'block')))
-
-                if not link_tag:
-                    # 兜底：找第一个非 baidu 域的外链
-                    for a in item.find_all('a', href=True):
-                        if 'baidu.com' not in a['href']:
-                            link_tag = a
+                # 🔥 手动过滤排除站点
+                if exclude_sites:
+                    skip = False
+                    for domain in exclude_sites:
+                        if domain in href:
+                            skip = True
                             break
-                if not link_tag:
-                    link_tag = item.find('a', href=True)
+                    if skip:
+                        continue
 
-                source = item.find('span', class_=re.compile('source')) or item.find('cite')
+                key = (title, href)
+                if key in seen:
+                    continue
+                seen.add(key)
 
-                if title_tag and link_tag and link_tag.get('href'):
-                    data = {
-                        'title': title_tag.get_text(strip=True),
-                        'href': link_tag['href'],
-                        'source': source.get_text(strip=True) if source else '未知来源',
-                        'engine': 'baidu'
-                    }
-                    if on_item:
-                        on_item(data)  # 立刻处理一条
-                    yield data       # 立刻产出一条
-            except Exception as e:
-                print(f"解析百度结果项时出错: {e}")
+                results.append({"title": title, "href": href})
+            except Exception:
                 continue
 
-    elif engine == "bing":
-        # Bing 常见结构：li.b_algo > h2 > a
-        for item in soup.find_all('li', class_=re.compile(r'\bb_algo\b')):
-            try:
-                title_tag = item.find('h2')
-                link_tag = title_tag.find('a') if title_tag else None
-                source = item.find('div', class_='tptt')  # 有些页面没有
+        await context.close()
+        await browser.close()
+        return results
 
-                if title_tag and link_tag and link_tag.get('href'):
-                    data = {
-                        'title': title_tag.get_text(strip=True),
-                        'href': link_tag['href'],
-                        'source': source.get_text(strip=True) if source else '未知来源',
-                        'engine': 'bing'
-                    }
-                    if on_item:
-                        on_item(data)
-                    yield data
-            except Exception as e:
-                print(f"解析Bing结果项时出错: {e}")
-                continue
+
+async def crawl_pages(keywords, total_pages: int, exclude_sites=None, **kwargs):
+    """传递 exclude_sites 到每个请求"""
+    tasks = []
+    for page_no in range(total_pages):
+        await asyncio.sleep(random.uniform(0.2, 0.6))
+        tasks.append(fetch_bing_results(
+            keywords, page_no,
+            exclude_sites=exclude_sites,  # 传递参数
+            **kwargs
+        ))
+
+    pages = await asyncio.gather(*tasks, return_exceptions=True)
+
+    merged, seen = [], set()
+    for page in pages:
+        if isinstance(page, Exception):
+            continue
+        for item in page:
+            key = item["href"]
+            if key not in seen:
+                seen.add(key)
+                merged.append(item)
+    return merged
+
+
+async def start_crawl_task(keywords, total_pages: int, exclude_sites=None, **kwargs):
+    """传递 exclude_sites"""
+    results = await crawl_pages(keywords, total_pages, exclude_sites=exclude_sites, **kwargs)
+    print(f"\n✅ 共获取 {len(results)} 个有效结果\n")
+    for i, link in enumerate(results, 1):
+        print(f"{i}. Title: {link['title']}")
+        print(f"   Link: {link['href']}\n")
+
+
+async def main():
+    # 方案 A：英文关键词 + 手动过滤知乎
+    keywords = ["4K wallpaper"]
+    await start_crawl_task(
+        keywords,
+        total_pages=3,  # 先测试 3 页
+        exclude_sites=EXCLUDE_SITES,  # 🔥 传递排除列表
+        mkt="en-US",
+        cc="US",
+        use_english_results=True,
+        count=10
+    )
 
 
 if __name__ == "__main__":
-    keywords = ["电影", "排名", "TOP250"]
-    page_no = 1
-    engine = "bing"
-
-    search_url = build_search_url(keywords, page_no, engine)
-    print(f"搜索 URL: {search_url}")
-
-    # 用法 1：生成器——谁先解析到就先拿到，边拿边用
-    for result in iter_parse_links(search_url, engine):
-        print(f"标题: {result['title']}")
-        print(f"链接: {result['href']}")
-        print(f"来源: {result['source']}")
-        print(f"引擎: {result['engine']}")
-        print("-" * 40)
-
+    asyncio.run(main())

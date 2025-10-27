@@ -16,7 +16,7 @@ def build_search_url(keywords: List[str], page_no: int, engine: str = "bing") ->
     """构建搜索引擎 URL"""
     if not keywords:
         return ""
-    encoded_keywords = [quote(kw) for kw in keywords]
+    encoded_keywords = [quote(kw, safe='', encoding='utf-8') for kw in keywords]
     query = '+'.join(encoded_keywords)
 
     if engine == "baidu":
@@ -24,7 +24,7 @@ def build_search_url(keywords: List[str], page_no: int, engine: str = "bing") ->
         return f"https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd={query}&pn={pn}"
     elif engine == "bing":
         first = (page_no - 1) * 10 + 1 if page_no > 1 else 1
-        return f"https://cn.bing.com/search?q={query}&first={first}"
+        return f"https://www.bing.com/search?q={query}&first={first}&setlang=en&mkt=en-US"
     return ""
 
 
@@ -33,52 +33,45 @@ def parse_links(html_content: str, engine: str = "bing") -> List[Dict[str, str]]
     soup = BeautifulSoup(html_content, 'html.parser')
     results = []
 
-    if engine == "baidu":
-        for item in soup.find_all('div', class_=re.compile(r'result')):
-            try:
-                title_tag = (item.find('span', class_=re.compile(r'tts-title-content'))
-                             or item.find('h3') or item.find('a'))
-                link_tag = (item.find('a', class_=re.compile(r'c-link'))
-                            or item.find('a', class_=re.compile(r'c-showurl|c-color-url'))
-                            or item.find('a', class_=re.compile(r'block')))
-                if not link_tag:
-                    for a in item.find_all('a', href=True):
-                        if 'baidu.com' not in a['href']:
-                            link_tag = a
-                            break
-                if not link_tag:
-                    link_tag = item.find('a', href=True)
-
-                source = item.find('span', class_=re.compile('source')) or item.find('cite')
-
-                if title_tag and link_tag and link_tag.get('href'):
-                    results.append({
-                        'title': title_tag.get_text(strip=True),
-                        'href': link_tag['href'],
-                        'source': source.get_text(strip=True) if source else '未知来源',
-                        'engine': 'baidu'
-                    })
-            except Exception:
-                continue
-
-    elif engine == "bing":
-        for item in soup.find_all('li', class_=re.compile('b_algo')):
+    if engine == "bing":
+        items = (
+                soup.find_all('li', class_='b_algo') or  # 标准结果
+                soup.find_all('div', class_='b_algo') or  # 备选
+                soup.select('.b_algo')  # CSS 选择器
+        )
+        for item in items:
             try:
                 title_tag = item.find('h2')
-                link_tag = title_tag.find('a') if title_tag else None
-                source = item.find('div', class_='tptt')
-                if title_tag and link_tag and link_tag.get('href'):
+                if not title_tag:
+                    continue
+                link_tag = title_tag.find('a')
+                if not link_tag or not link_tag.get('href'):
+                    continue
+                source = item.find('cite')  # ⚠️ cite 标签通常包含真实域名
+
+                if title_tag and link_tag:
+                    href = link_tag.get('href', '')
+
+                    # 🔥 方法1：从 cite 标签获取真实链接
+                    real_url = source.get_text(strip=True) if source else href
+
+                    # 🔥 方法2：如果 href 包含真实 URL，尝试提取
+                    if 'bing.com/ck/' in href or not href.startswith('http'):
+                        # 尝试从其他属性获取
+                        real_url = link_tag.get('data-url') or link_tag.get('href')
+                    else:
+                        real_url = href
+
                     results.append({
                         'title': title_tag.get_text(strip=True),
-                        'href': link_tag['href'],
+                        'href': real_url,
                         'source': source.get_text(strip=True) if source else '未知来源',
                         'engine': 'bing'
                     })
-            except Exception:
+            except Exception as e:
+                print(f"解析失败: {e}")
                 continue
     return results
-
-
 class CrawlerService:
     """
     爬虫服务 - 支持多端消费（Fanout 广播）
@@ -159,7 +152,7 @@ class CrawlerService:
         task_id = cmd["task_id"]
         keywords = cmd["keywords"]
         total_pages = cmd["pageSize"]
-        concurrency = cmd.get("concurrency", 5)
+        concurrency = cmd.get("concurrency", 1)
         rate = cmd.get("rateLimitPerSec", 2)
         engine = cmd.get("engine", "bing")
 
@@ -175,9 +168,20 @@ class CrawlerService:
             last_ts[0] = time.time()
 
         try:
+            connector = aiohttp.TCPConnector(
+                ssl=False,  # 或者使用 ssl=ssl.create_default_context()
+                limit=10,  # 限制并发连接数
+                ttl_dns_cache=300
+            )
             async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=15),
-                headers=DEFAULT_HEADERS
+                    connector=connector,
+                    timeout=aiohttp.ClientTimeout(
+                        total=30,  # 增加总超时
+                        connect=10,  # 连接超时
+                        sock_read=20  # 读取超时
+                    ),
+                    headers=DEFAULT_HEADERS,
+                    cookie_jar=aiohttp.CookieJar()
             ) as session:
                 # 开始状态 + 初始进度
                 await Broadcaster.broadcast_status(exchange, task_id, "started")
@@ -188,6 +192,7 @@ class CrawlerService:
                     if stop_event.is_set():
                         break
                     url = build_search_url(keywords, page_no, engine=engine)
+
                     task = asyncio.create_task(
                         self._crawl_one(
                             session=session,
@@ -221,47 +226,63 @@ class CrawlerService:
             if task_id in self.stop_flags:
                 del self.stop_flags[task_id]
 
-    async def _crawl_one(
-        self, session, url, page_no, task_id,
-        exchange, sem, rate_limit, stop_event, engine, keywords, total_pages
-    ):
+    async def _crawl_one(self, session, url, page_no, task_id,
+                         exchange, sem, rate_limit, stop_event, engine, keywords, total_pages):
         """爬取单个搜索结果页，并广播每条链接"""
         if stop_event.is_set():
             return
+
         async with sem:
             await rate_limit()
-            try:
-                async with session.get(url) as resp:
-                    if resp.status != 200:
-                        print(f"⚠️ 页面 {page_no} 返回状态码: {resp.status}")
-                        await Broadcaster.broadcast_progress(exchange, task_id, current=page_no, total=total_pages)
+
+            # 🔥 添加重试机制
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    async with session.get(url) as resp:
+                        if resp.status != 200:
+                            print(f"⚠️ 页面 {page_no} 返回状态码: {resp.status}")
+                            await Broadcaster.broadcast_progress(exchange, task_id, current=page_no, total=total_pages)
+                            return
+                        html = await resp.text(errors="ignore")
+
+                        # 🔥 保存 HTML 用于调试
+                        debug_file = f"debug_bing_page{page_no}_task{task_id}.html"
+                        with open(debug_file, 'w', encoding='utf-8') as f:
+                            f.write(html)
+                        print(f"🔍 已保存调试文件: {debug_file}")
+
+                    links = parse_links(html, engine)
+                    print(f"📄 页面 {page_no} 找到 {len(links)} 个链接")
+                    print(f"🔗 链接详情: {links}")  # 🔥 确保打印
+
+                    for link in links:
+                        if stop_event.is_set():
+                            break
+                        data = {
+                            "task_id": task_id,
+                            "keywords": keywords,
+                            "url": link['href'],
+                            "title": link['title'],
+                            "source": link['source'],
+                            "dateTime": datetime.now().isoformat(),
+                        }
+                        await Broadcaster.broadcast_result(exchange, task_id, data)
+
+                    await Broadcaster.broadcast_progress(exchange, task_id, current=page_no, total=total_pages)
+                    return  # 🔥 成功后直接返回
+
+                except (aiohttp.ClientError, asyncio.TimeoutError, ConnectionError) as e:
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt  # 指数退避: 1s, 2s, 4s
+                        print(f"⚠️ 页面 {page_no} 失败 (尝试 {attempt + 1}/{max_retries}): {e}, {wait_time}秒后重试...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        print(f"❌ 页面 {page_no} 最终失败: {e}")
                         return
-                    html = await resp.text(errors="ignore")
-
-                links = parse_links(html, engine)
-                print(f"📄 页面 {page_no} 找到 {len(links)} 个链接")
-
-                for link in links:
-                    if stop_event.is_set():
-                        break
-
-                    data = {
-                        "task_id": task_id,
-                        "keywords": keywords,           # 数组
-                        "url": link['href'],
-                        "title": link['title'],
-                        "source": link['source'],
-                        "dateTime": datetime.now().isoformat(),
-                    }
-                    await Broadcaster.broadcast_result(exchange, task_id, data)
-
-                # 页级进度：第 page_no / total_pages
-                await Broadcaster.broadcast_progress(exchange, task_id, current=page_no, total=total_pages)
-
-            except asyncio.TimeoutError:
-                print(f"⏱️ 页面 {page_no} 超时")
-            except Exception as e:
-                print(f"❌ 页面 {page_no} 失败: {e}")
+                except Exception as e:
+                    print(f"❌ 页面 {page_no} 未知错误: {e}")
+                    return
 async def main():
     svc = CrawlerService(AMQP_URL)
     await svc.run()

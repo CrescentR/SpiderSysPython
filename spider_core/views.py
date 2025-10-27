@@ -61,7 +61,7 @@ async def start_crawl(request):
         keywords = normalize_keywords(body.get('keywords', []))
         page_size = body.get('pageSize', 1)
         engine = body.get('engine', 'bing')
-        concurrency = body.get('concurrency', 5)
+        concurrency = body.get('concurrency', 1)
         rate_limit = body.get('rateLimitPerSec', 2.0)
 
         if not keywords:
@@ -196,14 +196,14 @@ async def stream_results(request, task_id):
     response["X-Accel-Buffering"] = "no"
     return response
 
-
+@csrf_exempt
 @require_http_methods(["GET"])
 async def index(request):
     return JsonResponse({
         "service": "Django 异步爬虫系统 - 多端消费版",
         "architecture": "Fanout Exchange",
         "consumers": {
-            "springBoot": QUEUE_CONFIG["springBoot"]["name"],
+            "springBoot": QUEUE_CONFIG["springBootData"]["name"],
             "front": QUEUE_CONFIG["front"]["name"]
         },
         "endpoints": {

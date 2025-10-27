@@ -72,3 +72,13 @@ class Broadcaster:
         }
         env = cls._envelope("result", task_id, payload)
         await cls._broadcast_data(exchange, env)
+
+    @staticmethod
+    async def broadcast_error(exchange, task_id: str, error_data: dict):
+        """广播错误信息"""
+        message = aio_pika.Message(
+            body=json.dumps({"type": "error", "task_id": task_id, "data": error_data}).encode(),
+            content_type="application/json",
+            delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+        )
+        await exchange.publish(message, routing_key="error") # 使用独立的 routing_key

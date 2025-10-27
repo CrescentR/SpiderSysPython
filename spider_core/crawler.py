@@ -2,6 +2,7 @@ import asyncio
 import json
 import time
 import re
+import os
 from typing import Dict, List
 from urllib.parse import quote
 from datetime import datetime
@@ -10,8 +11,8 @@ import aiohttp
 import aio_pika
 from bs4 import BeautifulSoup
 from .broadcaster import Broadcaster
-
-
+import random
+os.environ["PYDEVD_USE_FRAME_EVAL"] = "NO"
 def build_search_url(keywords: List[str], page_no: int, engine: str = "bing") -> str:
     """构建搜索引擎 URL"""
     if not keywords:
@@ -24,7 +25,7 @@ def build_search_url(keywords: List[str], page_no: int, engine: str = "bing") ->
         return f"https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd={query}&pn={pn}"
     elif engine == "bing":
         first = (page_no - 1) * 10 + 1 if page_no > 1 else 1
-        return f"https://www.bing.com/search?q={query}&first={first}&setlang=en&mkt=en-US"
+        return f"https://www.cn.bing.com/search?q={query}&first={first}"
     return ""
 
 
@@ -83,7 +84,29 @@ class CrawlerService:
         self.channel = None
         self.exchange = None  # Fanout 交换机
         self.cmd_queue = None
+        self.user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0'
+        ]
 
+    def get_headers(self):
+        """获取随机请求头"""
+        return {
+            'User-Agent': random.choice(self.user_agents),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0',
+            'DNT': '1'
+        }
     async def initialize(self):
         """初始化 RabbitMQ：Fanout Exchange + 业务队列；Topic Exchange + 命令队列"""
         self.connection = await aio_pika.connect(url=self.amqp_url)
@@ -180,7 +203,7 @@ class CrawlerService:
                         connect=10,  # 连接超时
                         sock_read=20  # 读取超时
                     ),
-                    headers=DEFAULT_HEADERS,
+                    headers=self.get_headers(),
                     cookie_jar=aiohttp.CookieJar()
             ) as session:
                 # 开始状态 + 初始进度

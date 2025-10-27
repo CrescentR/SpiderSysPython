@@ -5,15 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="475002c8-88af-4ac3-92bf-4ac9510ee5e9" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/chrome/LICENSE.chromedriver" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/chrome/THIRD_PARTY_NOTICES.chromedriver" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/chrome/chromedriver.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/run.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/debug_bing_16.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/debug_bing_page1_task16.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/debug_bing_page1_task17.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spider_core/broadcaster.py" beforeDir="false" afterPath="$PROJECT_DIR$/spider_core/broadcaster.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spider_core/configs.py" beforeDir="false" afterPath="$PROJECT_DIR$/spider_core/configs.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spider_core/crawler.py" beforeDir="false" afterPath="$PROJECT_DIR$/spider_core/crawler.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spider_core/debug_spider.py" beforeDir="false" afterPath="$PROJECT_DIR$/spider_core/debug_spider.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spider_core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/spider_core/views.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,35 +44,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Django 服务器.MultiSpiders.executor&quot;: &quot;Debug&quot;,
-    &quot;Django 服务器.MutiSpiders.executor&quot;: &quot;Run&quot;,
-    &quot;Django 服务器.Spider.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.uvicorn.executor&quot;: &quot;Run&quot;,
-    &quot;Python.爬虫服务.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;django.template.preview.state&quot;: &quot;SHOW_EDITOR&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;R:/Code/Python/MediaCrawler/MediaCrawler&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;npm.dev.executor&quot;: &quot;Run&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;R:\\Code\\Python\\MultiSpiders\\web\\node_modules\\typescript\\lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Django 服务器.MultiSpiders.executor": "Debug",
+    "Django 服务器.MutiSpiders.executor": "Run",
+    "Django 服务器.Spider.executor": "Debug",
+    "Python.uvicorn.executor": "Debug",
+    "Python.爬虫服务.executor": "Debug",
+    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "django.template.preview.state": "SHOW_EDITOR",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "R:/Code/Python/Spiders/BaiduSpider",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "npm.dev.executor": "Run",
+    "ts.external.directory.path": "R:\\Code\\Python\\MultiSpiders\\web\\node_modules\\typescript\\lib",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;DatabaseDriversLRU&quot;: [
-      &quot;postgresql&quot;
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "postgresql"
     ]
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="R:\Code\Python\MultiSpiders\chrome" />
@@ -261,6 +263,7 @@
       <workItem from="1761316571097" duration="374000" />
       <workItem from="1761445882735" duration="24395000" />
       <workItem from="1761533284186" duration="624000" />
+      <workItem from="1761543859552" duration="11097000" />
     </task>
     <servers />
   </component>
@@ -290,7 +293,7 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/MultiSpiders$.coverage" NAME="爬虫服务 覆盖结果" MODIFIED="1761479052290" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
-    <SUITE FILE_PATH="coverage/MultiSpiders$uvicorn.coverage" NAME="uvicorn 覆盖结果" MODIFIED="1761478766449" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="R:\Code\Python\MultiSpiders" />
+    <SUITE FILE_PATH="coverage/MultiSpiders$.coverage" NAME="爬虫服务 覆盖结果" MODIFIED="1761568043058" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/MultiSpiders$uvicorn.coverage" NAME="uvicorn 覆盖结果" MODIFIED="1761544110377" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="R:\Code\Python\MultiSpiders" />
   </component>
 </project>

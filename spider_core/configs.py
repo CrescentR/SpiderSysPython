@@ -36,9 +36,4 @@ QUEUE_CONFIG = {
         "durable": True,  # 持久化队列
         "auto_delete": False  # 不自动删除
     },
-    # "monitor": {
-    #     "name": "crawler.data.monitor",  # 监控队列名（可选）
-    #     "durable": True,
-    #     "auto_delete": False
-    # }
 }

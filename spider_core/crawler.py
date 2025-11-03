@@ -269,11 +269,6 @@ class CrawlerService:
                             return
                         html = await resp.text(errors="ignore")
 
-                        # 🔥 保存 HTML 用于调试
-                        debug_file = f"debug_bing_page{page_no}_task{task_id}.html"
-                        with open(debug_file, 'w', encoding='utf-8') as f:
-                            f.write(html)
-                        print(f"🔍 已保存调试文件: {debug_file}")
 
                     links = parse_links(html, engine)
                     print(f"📄 页面 {page_no} 找到 {len(links)} 个链接")
